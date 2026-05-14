@@ -40,6 +40,7 @@ COLOR_DEATH_ZONE = (180, 30, 30)
 COLOR_TERMINATOR = (160, 60, 60)
 COLOR_KNIFE      = (200, 200, 210)
 COLOR_HUD_TEXT   = (255, 255, 255)
+COLOR_SHRINK     = (160, 40, 40)
 
 RACER_COLORS = [
     (255, 50, 50),     # Red
@@ -60,10 +61,28 @@ MIN_FINISH_DISTANCE  = 12    # Euclidean tile distance from spawn
 SPAWN_BUFFER_W       = 6     # tiles carved open around spawn
 SPAWN_BUFFER_H       = 3
 
+# v2 map generation (corridor + pockets)
+SPAWN_MODE_CORNER_PROB = 0.20     # 20%: corner spawns, 80%: single spawn
+CORNER_SPAWN_SPLIT_PROB = 0.50    # 50%: 4 corners, 50%: 2 corners
+SPAWN_ROOM_W = 6
+SPAWN_ROOM_H = 4
+CORNER_ROOM_W = 6
+CORNER_ROOM_H = 4
+HUB_ROOM_W = 6
+HUB_ROOM_H = 4
+MAIN_CORRIDOR_WIDTH = 3
+MAIN_PATH_MIN_TURNS = 1
+MAIN_PATH_MAX_TURNS = 2
+POCKET_COUNT = 6
+POCKET_SIZE_MIN = 4
+POCKET_SIZE_MAX = 8
+POCKET_MIN_INDEX = 4            # avoid pockets too close to spawn hub
+POCKET_MAX_INDEX_PAD = 6        # keep pockets away from finish
+
 # ─── Item Spawning Probabilities ────────────────────────────────
 ITEM_COUNT_PROBS = {0: 0.40, 1: 0.30, 2: 0.20, 3: 0.10}
-ITEM_BUFFER_MIN  = 5         # min Manhattan distance from path
-ITEM_BUFFER_MAX  = 9
+ITEM_BUFFER_MIN  = 3         # min Manhattan distance from path
+ITEM_BUFFER_MAX  = 7
 
 # ─── Weapon System ──────────────────────────────────────────────
 WEAPON_KNIFE_PROB    = 0.65
@@ -71,6 +90,13 @@ WEAPON_GUN_PROB      = 0.35  # 1 - knife
 KNIFE_COOLDOWN_SEC   = 2.0   # seconds after use before re-pickup
 GUN_FIRE_INTERVAL    = 2.0   # seconds between Terminator shots
 GUN_RAY_LENGTH       = 600   # px — max raycast distance
+
+# ─── Shrink Mechanics (region-based) ────────────────────────────
+SHRINK_START_SEC          = 8.0
+SHRINK_CORRIDOR_STEP_TILES = 4
+SHRINK_STEP_PAUSE_SEC     = 1.5
+SHRINK_POCKET_PAUSE_SEC   = 1.2
+SHRINK_POCKET_BATCH       = 2
 
 # ─── Pressure Mechanics ────────────────────────────────────────
 MAX_RACE_SECONDS     = 90    # hard cutoff → discard simulation

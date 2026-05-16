@@ -36,6 +36,7 @@ from config import (
     MAP_GEN_MAX_ATTEMPTS,
     MIN_POCKETS_CORNER4,
     MIN_POCKETS_DEFAULT,
+    DISCONNECTED_TILE_DEPTH,
 )
 
 # Tile types
@@ -44,7 +45,6 @@ TILE_WALL = 1
 TILE_ITEM = 2
 TILE_FINISH = 3
 TILE_SHRINK = 4
-DISCONNECTED_TILE_DEPTH = -10**9
 
 
 # ─────────────────────────────────────────────────────────────
@@ -513,9 +513,7 @@ def generate_arena():
         spawn_mode_choice = "corner4" if random.random() < CORNER_SPAWN_SPLIT_PROB else "corner2"
 
     attempts = MAP_GEN_MAX_ATTEMPTS
-    attempt_count = 0
     for _ in range(attempts):
-        attempt_count += 1
         grid = _make_filled_grid(w, h, TILE_WALL)
 
         spawn_regions, spawn_points, hub_center, spawn_mode = _build_spawn_and_hub(grid, spawn_mode_choice)
@@ -538,6 +536,6 @@ def generate_arena():
         return grid, spawn_positions_px, finish_tiles, item_tiles, map_meta
 
     raise RuntimeError(
-        f"Failed to generate a valid Map Engine v2 arena after {attempt_count} attempts "
+        f"Failed to generate a valid Map Engine v2 arena after {MAP_GEN_MAX_ATTEMPTS} attempts "
         f"(spawn mode choice: {spawn_mode_choice})."
     )

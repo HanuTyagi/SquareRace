@@ -104,6 +104,7 @@ SHRINK_POCKET_PAUSE_SEC   = 1.2
 SHRINK_POCKET_BATCH       = 2
 SHRINK_MIN_FINISH_GUARD_TILES = 4
 SHRINK_FINISH_GUARD_RATIO = 0.12
+DISCONNECTED_TILE_DEPTH = -10**9
 
 # ─── Pressure Mechanics ────────────────────────────────────────
 MAX_RACE_SECONDS     = 90    # hard cutoff → discard simulation

@@ -46,6 +46,13 @@ class GameState:
         self.shrunk_tiles = set()
         self.newly_shrunk_tiles = []
 
+    def _get_grid_coords(self, position):
+        px, py = position
+        gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+        if not (0 <= gy < len(self.grid) and 0 <= gx < len(self.grid[0])):
+            return None
+        return gx, gy
+
     # ──────────────────────────────────────────────
     # Per-frame update — called from the main loop
     # ──────────────────────────────────────────────
@@ -106,10 +113,10 @@ class GameState:
         for i, racer in enumerate(self.racers):
             if not racer["alive"]:
                 continue
-            px, py = racer["body"].position
-            gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
-            if not (0 <= gy < len(self.grid) and 0 <= gx < len(self.grid[0])):
+            coords = self._get_grid_coords(racer["body"].position)
+            if coords is None:
                 continue
+            gx, gy = coords
             if (gx, gy) in self.shrunk_tiles:
                 self.pending_removals.append(i)
 
@@ -120,8 +127,10 @@ class GameState:
         for racer in self.racers:
             if not racer["alive"] or racer["held_item"] is not None:
                 continue
-            px, py = racer["body"].position
-            gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+            coords = self._get_grid_coords(racer["body"].position)
+            if coords is None:
+                continue
+            gx, gy = coords
             if (gx, gy) in [(ix, iy) for ix, iy in self.item_tiles]:
                 # Assign weapon
                 if random.random() < WEAPON_KNIFE_PROB:
@@ -139,8 +148,10 @@ class GameState:
         for racer in self.racers:
             if not racer["alive"] or racer["held_item"] is not None:
                 continue
-            px, py = racer["body"].position
-            gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+            coords = self._get_grid_coords(racer["body"].position)
+            if coords is None:
+                continue
+            gx, gy = coords
             for knife in self.dropped_knives[:]:
                 kx, ky, cd = knife
                 if cd <= 0 and gx == kx and gy == ky:
@@ -221,8 +232,10 @@ class GameState:
         for racer in self.racers:
             if not racer["alive"] or racer["state"] == "terminator":
                 continue  # terminators can't win by finish line
-            px, py = racer["body"].position
-            gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+            coords = self._get_grid_coords(racer["body"].position)
+            if coords is None:
+                continue
+            gx, gy = coords
             if (gx, gy) in self.finish_tiles:
                 self.winner = racer["name"]
                 print(f"  [WIN] {racer['name']} reached the finish line!")

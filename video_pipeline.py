@@ -67,6 +67,7 @@ def run_single_race(screen):
     game = GameState(racers, grid, finish_tiles, item_tiles, map_meta=map_meta)
     map_surface = bake_map_surface(grid)
     trail_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    # Persistent overlay: only newly shrunk tiles are painted each frame.
     shrink_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     frames = []

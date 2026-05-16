@@ -17,7 +17,7 @@ from config import (
     SQUARE_SIZE, TRAIL_LENGTH, TRAIL_ALPHA_MAX, TRAIL_MIN_SCALE,
     COLOR_WALL, COLOR_PATH, COLOR_CHECKER_1, COLOR_CHECKER_2,
     COLOR_FINISH_1, COLOR_FINISH_2, COLOR_DEATH_ZONE,
-    COLOR_TERMINATOR, COLOR_KNIFE, COLOR_HUD_TEXT,
+    COLOR_TERMINATOR, COLOR_KNIFE, COLOR_HUD_TEXT, COLOR_SHRINK,
 )
 from map_generator import TILE_FLOOR, TILE_WALL, TILE_ITEM, TILE_FINISH
 
@@ -123,6 +123,16 @@ def draw_death_zone(surface, death_zone_y):
         pygame.draw.line(
             surface, (255, 80, 80),
             (0, int(death_zone_y)), (WIDTH, int(death_zone_y)), 2,
+        )
+
+
+def draw_shrink_tiles(overlay_surface, tiles):
+    """Draw newly shrunk tiles onto persistent shrink overlay."""
+    for x, y in tiles:
+        pygame.draw.rect(
+            overlay_surface,
+            COLOR_SHRINK,
+            pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE),
         )
 
 

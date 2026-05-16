@@ -24,7 +24,7 @@ from physics_engine import (
 )
 from renderer import (
     bake_map_surface, draw_trails, draw_racers,
-    draw_death_zone, draw_hud,
+    draw_death_zone, draw_hud, draw_shrink_tiles,
 )
 from game_mechanics import GameState
 
@@ -60,13 +60,14 @@ def run_single_race(screen):
     winner_name : str or None
     """
     # --- Setup ---
-    grid, spawn_center, finish_tiles, item_tiles = generate_arena()
+    grid, spawn_center, finish_tiles, item_tiles, map_meta = generate_arena()
     space = create_space()
     add_walls(space, grid)
     racers = create_racers(space, spawn_center)
-    game = GameState(racers, grid, finish_tiles, item_tiles)
+    game = GameState(racers, grid, finish_tiles, item_tiles, map_meta=map_meta)
     map_surface = bake_map_surface(grid)
     trail_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    shrink_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     frames = []
     winner_held_frames = 0       # hold the winner screen for a few seconds
@@ -88,6 +89,9 @@ def run_single_race(screen):
         trail_overlay.fill((0, 0, 0, 0))
         draw_trails(trail_overlay, racers)
         screen.blit(trail_overlay, (0, 0))
+        if game.newly_shrunk_tiles:
+            draw_shrink_tiles(shrink_overlay, game.newly_shrunk_tiles)
+        screen.blit(shrink_overlay, (0, 0))
 
         # Racers
         draw_racers(screen, racers)
@@ -172,4 +176,3 @@ def shutdown_pipeline():
     from renderer import _font_cache
     _font_cache.clear()
     pygame.quit()
-

@@ -22,8 +22,9 @@ from config import (
     DEATH_ZONE_START_SEC, DEATH_ZONE_SPEED,
     MAX_RACE_SECONDS,
 )
-from physics_engine import CAT_RACER
-from map_generator import TILE_ITEM, TILE_FLOOR
+from physics_engine import CAT_RACER, add_wall_tile
+from map_generator import TILE_ITEM, TILE_FLOOR, TILE_WALL, TILE_FINISH, TILE_SHRINK
+from shrink_engine import ShrinkEngine
 
 
 class GameState:
@@ -31,7 +32,7 @@ class GameState:
     Mutable game state container, updated each frame by the simulation loop.
     """
 
-    def __init__(self, racers, grid, finish_tiles, item_tiles):
+    def __init__(self, racers, grid, finish_tiles, item_tiles, map_meta=None):
         self.racers = racers
         self.grid = grid
         self.finish_tiles = set(finish_tiles)
@@ -42,6 +43,10 @@ class GameState:
         self.winner = None                         # racer name or None
         self.frame_count = 0
         self.elapsed_sec = 0.0
+        self.map_meta = map_meta or {}
+        self.shrink_engine = ShrinkEngine(self.map_meta)
+        self.shrunk_tiles = set()
+        self.newly_shrunk_tiles = []
 
     # ──────────────────────────────────────────────
     # Per-frame update — called from the main loop
@@ -55,8 +60,8 @@ class GameState:
         self._check_item_pickups()
         self._check_knife_collisions()
         self._fire_guns(space)
-        self._update_death_zone(dt)
-        self._check_death_zone()
+        # Legacy top-down death zone is superseded by staged region shrink.
+        self._update_shrink(dt, space)
         self._check_finish_line()
         self._check_last_alive()
         self._flush_removals(space)
@@ -69,6 +74,44 @@ class GameState:
             return "win"
 
         return "running"
+
+    def _update_shrink(self, dt, space):
+        self.newly_shrunk_tiles = []
+        if self.shrink_engine is None:
+            return
+
+        new_tiles = self.shrink_engine.update(dt)
+        if not new_tiles:
+            return
+
+        for x, y in new_tiles:
+            if not (0 <= y < len(self.grid) and 0 <= x < len(self.grid[0])):
+                continue
+            if (x, y) in self.shrunk_tiles:
+                continue
+            if self.grid[y][x] in (TILE_WALL, TILE_FINISH):
+                continue
+
+            self.grid[y][x] = TILE_SHRINK
+            self.shrunk_tiles.add((x, y))
+            self.newly_shrunk_tiles.append((x, y))
+            add_wall_tile(space, x, y)
+
+            # Remove consumed item if shrink covers it.
+            if (x, y) in self.item_tiles:
+                self.item_tiles.remove((x, y))
+
+        if not self.newly_shrunk_tiles:
+            return
+
+        # Simple stable squeeze rule: if racer is on a newly shrunk tile, eliminate.
+        for i, racer in enumerate(self.racers):
+            if not racer["alive"]:
+                continue
+            px, py = racer["body"].position
+            gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+            if (gx, gy) in self.shrunk_tiles:
+                self.pending_removals.append(i)
 
     # ──────────────────────────────────────────────
     # Item pickup

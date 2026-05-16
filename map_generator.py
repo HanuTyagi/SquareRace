@@ -36,7 +36,7 @@ from config import (
     MAP_GEN_MAX_ATTEMPTS,
     MIN_POCKETS_CORNER4,
     MIN_POCKETS_DEFAULT,
-    DISCONNECTED_TILE_DEPTH,
+    MIN_FILL_PRIORITY,
 )
 
 # Tile types
@@ -191,9 +191,9 @@ def _distance_map_within_region(region_tiles, entrances):
             dist[(nx, ny)] = dist[(x, y)] + 1
             q.append((nx, ny))
 
-    # Disconnected tiles (unexpected) get lowest fill priority.
+    # Disconnected tiles (unexpected) get minimum priority (sorts last in descending fill order).
     for t in region:
-        dist.setdefault(t, DISCONNECTED_TILE_DEPTH)
+        dist.setdefault(t, MIN_FILL_PRIORITY)
     return dist
 
 
@@ -537,5 +537,6 @@ def generate_arena():
 
     raise RuntimeError(
         f"Failed to generate a valid Map Engine v2 arena after {MAP_GEN_MAX_ATTEMPTS} attempts "
-        f"(spawn mode choice: {spawn_mode_choice})."
+        f"(spawn mode choice: {spawn_mode_choice}). Try reducing MIN_POCKETS requirements or "
+        f"adjusting POCKET_SIZE / POCKET_MAX_INDEX_PAD constraints."
     )

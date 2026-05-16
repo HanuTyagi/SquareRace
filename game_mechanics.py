@@ -65,7 +65,7 @@ class GameState:
         self._check_item_pickups()
         self._check_knife_collisions()
         self._fire_guns(space)
-        # Legacy top-down death zone is superseded by staged region shrink.
+        # Legacy directional death-zone pressure is superseded by staged region shrink.
         self._update_shrink(dt, space)
         self._check_finish_line()
         self._check_last_alive()

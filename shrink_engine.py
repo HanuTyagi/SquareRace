@@ -10,7 +10,7 @@ from config import (
     SHRINK_POCKET_BATCH,
     SHRINK_MIN_FINISH_GUARD_TILES,
     SHRINK_FINISH_GUARD_RATIO,
-    DISCONNECTED_TILE_DEPTH,
+    MIN_FILL_PRIORITY,
 )
 
 
@@ -50,7 +50,7 @@ class ShrinkEngine:
             entries = list(region.get("tiles", []))
             # Fill deep -> entrance to push racers outward.
             entries.sort(
-                key=lambda t: (depth_map.get(t, DISCONNECTED_TILE_DEPTH), t[1], t[0]),
+                key=lambda t: (depth_map.get(t, MIN_FILL_PRIORITY), t[1], t[0]),
                 reverse=True,
             )
             order.extend(entries)

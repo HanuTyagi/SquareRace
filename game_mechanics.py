@@ -102,7 +102,7 @@ class GameState:
         if not self.newly_shrunk_tiles:
             return
 
-        # Simple stable squeeze rule: if racer is on a newly shrunk tile, eliminate.
+        # Simple stable squeeze rule: eliminate racers overlapping any shrunk tile.
         for i, racer in enumerate(self.racers):
             if not racer["alive"]:
                 continue

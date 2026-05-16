@@ -34,6 +34,8 @@ from config import (
     POCKET_FINISH_MIN_DISTANCE_X,
     POCKET_FINISH_MIN_DISTANCE_Y,
     MAP_GEN_MAX_ATTEMPTS,
+    MIN_POCKETS_CORNER4,
+    MIN_POCKETS_DEFAULT,
 )
 
 # Tile types
@@ -511,14 +513,16 @@ def generate_arena():
         spawn_mode_choice = "corner4" if random.random() < CORNER_SPAWN_SPLIT_PROB else "corner2"
 
     attempts = MAP_GEN_MAX_ATTEMPTS
+    attempt_count = 0
     for _ in range(attempts):
+        attempt_count += 1
         grid = _make_filled_grid(w, h, TILE_WALL)
 
         spawn_regions, spawn_points, hub_center, spawn_mode = _build_spawn_and_hub(grid, spawn_mode_choice)
         finish_tiles, spine, _, finish_chamber = _build_finish_and_main_corridor(grid, hub_center)
         pockets = _place_pockets(grid, spine, finish_tiles[0])
 
-        min_pockets = 1 if spawn_mode == "corner4" else 2
+        min_pockets = MIN_POCKETS_CORNER4 if spawn_mode == "corner4" else MIN_POCKETS_DEFAULT
         if len(pockets) < min_pockets:
             continue
 
@@ -534,6 +538,6 @@ def generate_arena():
         return grid, spawn_positions_px, finish_tiles, item_tiles, map_meta
 
     raise RuntimeError(
-        f"Failed to generate a valid Map Engine v2 arena after {attempts} attempts "
+        f"Failed to generate a valid Map Engine v2 arena after {attempt_count} attempts "
         f"(spawn mode choice: {spawn_mode_choice})."
     )

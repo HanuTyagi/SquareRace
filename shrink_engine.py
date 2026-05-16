@@ -124,11 +124,11 @@ class ShrinkEngine:
 
     def _calculate_finish_guard_limit(self):
         """Return corridor index limit that preserves late finish approach access."""
-        guard = max(
+        guard_tiles = max(
             SHRINK_MIN_FINISH_GUARD_TILES,
             int(len(self.spine) * SHRINK_FINISH_GUARD_RATIO),
         )
-        return max(0, len(self.spine) - guard)
+        return max(0, len(self.spine) - guard_tiles)
 
     def update(self, dt):
         """Advance state machine; return newly filled tiles this update."""

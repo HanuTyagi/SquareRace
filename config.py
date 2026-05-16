@@ -81,6 +81,8 @@ POCKET_MAX_INDEX_PAD = 6        # keep pockets away from finish
 POCKET_FINISH_MIN_DISTANCE_X = 2
 POCKET_FINISH_MIN_DISTANCE_Y = 3
 MAP_GEN_MAX_ATTEMPTS = 300
+MIN_POCKETS_CORNER4 = 1
+MIN_POCKETS_DEFAULT = 2
 
 # ─── Item Spawning Probabilities ────────────────────────────────
 ITEM_COUNT_PROBS = {0: 0.40, 1: 0.30, 2: 0.20, 3: 0.10}

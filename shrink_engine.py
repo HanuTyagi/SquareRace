@@ -98,9 +98,7 @@ class ShrinkEngine:
         if not self.spine:
             return []
 
-        # Keep finish approach open until late.
-        guard = max(SHRINK_MIN_FINISH_GUARD_TILES, int(len(self.spine) * SHRINK_FINISH_GUARD_RATIO))
-        hard_limit = max(0, len(self.spine) - guard)
+        hard_limit = self._calculate_finish_guard_limit()
 
         if self._corridor_index >= hard_limit:
             # Only allow final advance when all pockets are already filled.
@@ -118,6 +116,14 @@ class ShrinkEngine:
             self.filled.add(t)
             newly.append(t)
         return newly
+
+    def _calculate_finish_guard_limit(self):
+        """Return corridor index limit that preserves late finish approach access."""
+        guard = max(
+            SHRINK_MIN_FINISH_GUARD_TILES,
+            int(len(self.spine) * SHRINK_FINISH_GUARD_RATIO),
+        )
+        return max(0, len(self.spine) - guard)
 
     def update(self, dt):
         """Advance state machine; return newly filled tiles this update."""

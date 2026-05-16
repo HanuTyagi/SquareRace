@@ -78,6 +78,8 @@ POCKET_SIZE_MIN = 4
 POCKET_SIZE_MAX = 8
 POCKET_MIN_INDEX = 4            # avoid pockets too close to spawn hub
 POCKET_MAX_INDEX_PAD = 6        # keep pockets away from finish
+POCKET_FINISH_MIN_DISTANCE_X = 2
+POCKET_FINISH_MIN_DISTANCE_Y = 3
 MAP_GEN_MAX_ATTEMPTS = 300
 
 # ─── Item Spawning Probabilities ────────────────────────────────

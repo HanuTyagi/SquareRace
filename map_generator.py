@@ -31,6 +31,8 @@ from config import (
     POCKET_SIZE_MAX,
     POCKET_MIN_INDEX,
     POCKET_MAX_INDEX_PAD,
+    POCKET_FINISH_MIN_DISTANCE_X,
+    POCKET_FINISH_MIN_DISTANCE_Y,
     MAP_GEN_MAX_ATTEMPTS,
 )
 
@@ -370,7 +372,10 @@ def _place_pockets(grid, spine, finish_anchor):
                 continue
 
             # Keep near-finish pockets possible, but not directly inside finish chamber.
-            if abs((rx + room_w // 2) - finish_anchor[0]) < 2 and abs((ry + room_h // 2) - finish_anchor[1]) < 3:
+            if (
+                abs((rx + room_w // 2) - finish_anchor[0]) < POCKET_FINISH_MIN_DISTANCE_X
+                and abs((ry + room_h // 2) - finish_anchor[1]) < POCKET_FINISH_MIN_DISTANCE_Y
+            ):
                 continue
 
             _set_tile(grid, ex, ey, TILE_FLOOR)
@@ -416,10 +421,10 @@ def _place_items(grid, spawn_start, finish_tiles):
     r = random.random()
     cumulative = 0.0
     count = 0
-    for k, prob in sorted(ITEM_COUNT_PROBS.items()):
+    for item_count, prob in sorted(ITEM_COUNT_PROBS.items()):
         cumulative += prob
         if r < cumulative:
-            count = k
+            count = item_count
             break
 
     placed = []

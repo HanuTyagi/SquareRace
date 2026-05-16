@@ -448,12 +448,24 @@ def _build_region_metadata(spawn_regions, pockets, spine, finish_tiles, spawn_mo
     # Compute spine index lookup.
     spine_index = {tile: i for i, tile in enumerate(spine)}
 
+    def nearest_spine_index(tile):
+        if tile in spine_index:
+            return spine_index[tile]
+        best_idx = None
+        best_dist = 10**9
+        for idx, sp in enumerate(spine):
+            d = abs(sp[0] - tile[0]) + abs(sp[1] - tile[1])
+            if d < best_dist:
+                best_dist = d
+                best_idx = idx
+        return best_idx
+
     def finish_distance_score(region):
         indices = []
         for e in region["entrances"]:
             i = region.get("corridor_index")
             if i is None:
-                i = spine_index.get(e)
+                i = nearest_spine_index(e)
             if i is not None:
                 indices.append(len(spine) - 1 - i)
         return max(indices) if indices else len(spine)

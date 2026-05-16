@@ -108,6 +108,8 @@ class GameState:
                 continue
             px, py = racer["body"].position
             gx, gy = int(px // TILE_SIZE), int(py // TILE_SIZE)
+            if not (0 <= gy < len(self.grid) and 0 <= gx < len(self.grid[0])):
+                continue
             if (gx, gy) in self.shrunk_tiles:
                 self.pending_removals.append(i)
 

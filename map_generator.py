@@ -42,6 +42,7 @@ TILE_WALL = 1
 TILE_ITEM = 2
 TILE_FINISH = 3
 TILE_SHRINK = 4
+DISCONNECTED_TILE_DEPTH = -10**9
 
 
 # ─────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ def _bfs_path(grid, start, goals):
             return list(reversed(path))
 
         for nx, ny in _neighbors4(x, y):
+            # Keep the border ring blocked as permanent outer walls.
             if not (0 < nx < w - 1 and 0 < ny < h - 1):
                 continue
             if (nx, ny) in parent:
@@ -187,9 +189,9 @@ def _distance_map_within_region(region_tiles, entrances):
             dist[(nx, ny)] = dist[(x, y)] + 1
             q.append((nx, ny))
 
-    # Tiles disconnected from entrance (shouldn't happen) get lowest priority.
+    # Disconnected tiles (unexpected) get lowest fill priority.
     for t in region:
-        dist.setdefault(t, -1)
+        dist.setdefault(t, DISCONNECTED_TILE_DEPTH)
     return dist
 
 

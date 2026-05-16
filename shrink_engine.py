@@ -12,6 +12,8 @@ from config import (
     SHRINK_FINISH_GUARD_RATIO,
 )
 
+DISCONNECTED_TILE_DEPTH = -10**9
+
 
 class ShrinkEngine:
     """
@@ -48,7 +50,10 @@ class ShrinkEngine:
             depth_map = region.get("depth_map", {})
             entries = list(region.get("tiles", []))
             # Fill deep -> entrance to push racers outward.
-            entries.sort(key=lambda t: (depth_map.get(t, -10**9), t[1], t[0]), reverse=True)
+            entries.sort(
+                key=lambda t: (depth_map.get(t, DISCONNECTED_TILE_DEPTH), t[1], t[0]),
+                reverse=True,
+            )
             order.extend(entries)
         return order
 

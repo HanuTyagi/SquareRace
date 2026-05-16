@@ -78,6 +78,7 @@ POCKET_SIZE_MIN = 4
 POCKET_SIZE_MAX = 8
 POCKET_MIN_INDEX = 4            # avoid pockets too close to spawn hub
 POCKET_MAX_INDEX_PAD = 6        # keep pockets away from finish
+MAP_GEN_MAX_ATTEMPTS = 300
 
 # ─── Item Spawning Probabilities ────────────────────────────────
 ITEM_COUNT_PROBS = {0: 0.40, 1: 0.30, 2: 0.20, 3: 0.10}
@@ -97,6 +98,8 @@ SHRINK_CORRIDOR_STEP_TILES = 4
 SHRINK_STEP_PAUSE_SEC     = 1.5
 SHRINK_POCKET_PAUSE_SEC   = 1.2
 SHRINK_POCKET_BATCH       = 2
+SHRINK_MIN_FINISH_GUARD_TILES = 4
+SHRINK_FINISH_GUARD_RATIO = 0.12
 
 # ─── Pressure Mechanics ────────────────────────────────────────
 MAX_RACE_SECONDS     = 90    # hard cutoff → discard simulation

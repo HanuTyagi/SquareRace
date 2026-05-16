@@ -24,7 +24,7 @@ from physics_engine import (
 )
 from renderer import (
     bake_map_surface, draw_trails, draw_racers,
-    draw_death_zone, draw_hud, draw_shrink_tiles,
+    draw_hud, draw_shrink_tiles,
 )
 from game_mechanics import GameState
 
@@ -95,9 +95,6 @@ def run_single_race(screen):
 
         # Racers
         draw_racers(screen, racers)
-
-        # Death zone
-        draw_death_zone(screen, game.death_zone_y)
 
         # HUD
         if game.winner:

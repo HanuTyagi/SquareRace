@@ -31,6 +31,7 @@ from config import (
     POCKET_SIZE_MAX,
     POCKET_MIN_INDEX,
     POCKET_MAX_INDEX_PAD,
+    MAP_GEN_MAX_ATTEMPTS,
 )
 
 # Tile types
@@ -490,7 +491,8 @@ def generate_arena():
     else:
         spawn_mode_choice = "corner4" if random.random() < CORNER_SPAWN_SPLIT_PROB else "corner2"
 
-    for _ in range(300):
+    attempts = MAP_GEN_MAX_ATTEMPTS
+    for _ in range(attempts):
         grid = _make_filled_grid(w, h, TILE_WALL)
 
         spawn_regions, spawn_points, hub_center, spawn_mode = _build_spawn_and_hub(grid, spawn_mode_choice)
@@ -512,4 +514,7 @@ def generate_arena():
 
         return grid, spawn_positions_px, finish_tiles, item_tiles, map_meta
 
-    raise RuntimeError("Failed to generate a valid Map Engine v2 arena.")
+    raise RuntimeError(
+        f"Failed to generate a valid Map Engine v2 arena after {attempts} attempts "
+        f"(spawn mode choice: {spawn_mode_choice})."
+    )

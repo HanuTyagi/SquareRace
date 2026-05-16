@@ -19,7 +19,6 @@ from config import (
     WEAPON_KNIFE_PROB, KNIFE_COOLDOWN_SEC,
     GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
     COLOR_TERMINATOR,
-    DEATH_ZONE_START_SEC, DEATH_ZONE_SPEED,
     MAX_RACE_SECONDS,
 )
 from physics_engine import CAT_RACER, add_wall_tile
@@ -39,7 +38,6 @@ class GameState:
         self.item_tiles = list(item_tiles)        # mutable; items get consumed
         self.pending_removals = []                 # (racer_index,) queued for removal
         self.dropped_knives = []                   # [(grid_x, grid_y, cooldown_remaining)]
-        self.death_zone_y = 0.0                    # pixel Y of the death wall edge
         self.winner = None                         # racer name or None
         self.frame_count = 0
         self.elapsed_sec = 0.0
@@ -211,24 +209,6 @@ class GameState:
                 self.pending_removals.append(victim_idx)
                 print(f"  [GUN] {racer['name']} shot {victim['name']}!")
                 break  # first hit only
-
-    # ──────────────────────────────────────────────
-    # Death zone
-    # ──────────────────────────────────────────────
-    def _update_death_zone(self, dt):
-        if self.elapsed_sec > DEATH_ZONE_START_SEC:
-            self.death_zone_y += DEATH_ZONE_SPEED * dt
-
-    def _check_death_zone(self):
-        if self.death_zone_y <= 0:
-            return
-        for i, racer in enumerate(self.racers):
-            if not racer["alive"]:
-                continue
-            py = racer["body"].position.y
-            if py < self.death_zone_y:
-                self.pending_removals.append(i)
-                print(f"  [ZONE] {racer['name']} crushed by death zone!")
 
     # ──────────────────────────────────────────────
     # Win conditions

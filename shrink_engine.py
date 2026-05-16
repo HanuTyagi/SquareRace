@@ -8,6 +8,8 @@ from config import (
     SHRINK_STEP_PAUSE_SEC,
     SHRINK_POCKET_PAUSE_SEC,
     SHRINK_POCKET_BATCH,
+    SHRINK_MIN_FINISH_GUARD_TILES,
+    SHRINK_FINISH_GUARD_RATIO,
 )
 
 
@@ -97,7 +99,7 @@ class ShrinkEngine:
             return []
 
         # Keep finish approach open until late.
-        guard = max(4, int(len(self.spine) * 0.12))
+        guard = max(SHRINK_MIN_FINISH_GUARD_TILES, int(len(self.spine) * SHRINK_FINISH_GUARD_RATIO))
         hard_limit = max(0, len(self.spine) - guard)
 
         if self._corridor_index >= hard_limit:

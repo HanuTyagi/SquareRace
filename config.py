@@ -39,8 +39,10 @@ COLOR_FINISH_2   = (50, 50, 50)
 COLOR_DEATH_ZONE = (180, 30, 30)
 COLOR_TERMINATOR = (160, 60, 60)
 COLOR_KNIFE      = (200, 200, 210)
+COLOR_GUN_ITEM   = (190, 90, 90)
 COLOR_HUD_TEXT   = (255, 255, 255)
 COLOR_SHRINK     = (160, 40, 40)
+COLOR_BLOCKER    = (120, 140, 180)
 
 RACER_COLORS = [
     (255, 50, 50),     # Red
@@ -86,12 +88,17 @@ MIN_POCKETS_DEFAULT = 2
 
 # ─── Item Spawning Probabilities ────────────────────────────────
 ITEM_COUNT_PROBS = {0: 0.40, 1: 0.30, 2: 0.20, 3: 0.10}
-ITEM_BUFFER_MIN  = 3         # min Manhattan distance from path
-ITEM_BUFFER_MAX  = 7
+# Keep item drops in side-route risk/reward band around the shortest path.
+ITEM_BUFFER_MIN = 5  # min Manhattan distance from path
+ITEM_BUFFER_MAX = 9
+ITEM_TYPE_PROBS = {"knife": 0.60, "gun": 0.40}
+
+# ─── Moving Blockers ─────────────────────────────────────────────
+MOVING_BLOCKER_COUNT      = 3
+MOVING_BLOCKER_OPEN_SEC   = 2.0
+MOVING_BLOCKER_CLOSED_SEC = 2.0
 
 # ─── Weapon System ──────────────────────────────────────────────
-WEAPON_KNIFE_PROB    = 0.65
-WEAPON_GUN_PROB      = 0.35  # 1 - knife
 KNIFE_COOLDOWN_SEC   = 2.0   # seconds after use before re-pickup
 GUN_FIRE_INTERVAL    = 2.0   # seconds between Terminator shots
 GUN_RAY_LENGTH       = 600   # px — max raycast distance

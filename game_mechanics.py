@@ -2,40 +2,53 @@
 game_mechanics.py — Modules C + D: Weapons, Terminator, Death Zone, Win Logic.
 
 Manages:
-  - Item tile pickup → random weapon assignment (knife / gun)
+  - Typed item pickup (knife / gun)
   - Knife: melee elimination on racer-vs-racer collision, cooldown drop
   - Gun (Terminator): state change, periodic raycast firing, elimination on hit
   - Death Zone: descending wall that eliminates racers above it
-  - Win conditions: finish-line crossing (normal) or last-alive (terminator)
+  - Win condition: finish-line crossing only
   - Deferred body removal queue (safe mid-step handling)
 """
 
-import random
 import math
 import pymunk
 
 from config import (
-    TILE_SIZE, SQUARE_SIZE, FPS, WIDTH,
-    WEAPON_KNIFE_PROB, KNIFE_COOLDOWN_SEC,
+    TILE_SIZE, SQUARE_SIZE, FPS,
+    KNIFE_COOLDOWN_SEC,
     GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
     COLOR_TERMINATOR,
     MAX_RACE_SECONDS,
+    MOVING_BLOCKER_OPEN_SEC,
+    MOVING_BLOCKER_CLOSED_SEC,
 )
 from physics_engine import CAT_RACER, add_wall_tile
-from map_generator import TILE_ITEM, TILE_FLOOR, TILE_WALL, TILE_FINISH, TILE_SHRINK
+from map_generator import TILE_FLOOR, TILE_WALL, TILE_FINISH, TILE_SHRINK
 from shrink_engine import ShrinkEngine
 
 
 class GameState:
     """
     Mutable game state container, updated each frame by the simulation loop.
+
+    Parameters
+    ----------
+    item_tiles : list[dict] | list[tuple[int, int]]
+        Preferred format is [{"tile": (x, y), "item_type": "knife"|"gun"}, ...].
+        Legacy tuple-only entries default to knife pickups.
     """
 
     def __init__(self, racers, grid, finish_tiles, item_tiles, map_meta=None):
         self.racers = racers
         self.grid = grid
         self.finish_tiles = set(finish_tiles)
-        self.item_tiles = list(item_tiles)        # mutable; items get consumed
+        self.item_spawns = {
+            tuple(item["tile"]): item["item_type"]
+            for item in item_tiles
+            if isinstance(item, dict) and "tile" in item and "item_type" in item
+        }
+        if not self.item_spawns:
+            self.item_spawns = {tuple(t): "knife" for t in item_tiles}
         self.pending_removals = []                 # (racer_index,) queued for removal
         self.dropped_knives = []                   # [(grid_x, grid_y, cooldown_remaining)]
         self.winner = None                         # racer name or None
@@ -45,6 +58,10 @@ class GameState:
         self.shrink_engine = ShrinkEngine(self.map_meta)
         self.shrunk_tiles = set()
         self.newly_shrunk_tiles = []
+        self.moving_blockers = list(self.map_meta.get("moving_blockers", []))
+        self.blocker_time = 0.0
+        self.active_blockers = {}                  # {(x, y): (body, shape)}
+        self.active_blocker_tiles = []
 
     def _get_grid_coords(self, position):
         px, py = position
@@ -63,12 +80,12 @@ class GameState:
 
         self._update_cooldowns(dt)
         self._check_item_pickups()
+        self._update_moving_blockers(dt, space)
         self._check_knife_collisions()
         self._fire_guns(space)
-        # Legacy directional death-zone pressure is superseded by staged region shrink.
+        # Uses staged region shrink for pressure.
         self._update_shrink(dt, space)
         self._check_finish_line()
-        self._check_last_alive()
         self._flush_removals(space)
 
         # Hard time limit
@@ -103,8 +120,8 @@ class GameState:
             add_wall_tile(space, x, y)
 
             # Remove consumed item if shrink covers it.
-            if (x, y) in self.item_tiles:
-                self.item_tiles.remove((x, y))
+            if (x, y) in self.item_spawns:
+                self.item_spawns.pop((x, y), None)
 
         if not self.newly_shrunk_tiles:
             return
@@ -121,6 +138,36 @@ class GameState:
                 self.pending_removals.append(i)
 
     # ──────────────────────────────────────────────
+    # Moving blockers
+    # ──────────────────────────────────────────────
+    def _update_moving_blockers(self, dt, space):
+        self.active_blocker_tiles = []
+        if not self.moving_blockers:
+            return
+
+        self.blocker_time += dt
+        cycle = MOVING_BLOCKER_OPEN_SEC + MOVING_BLOCKER_CLOSED_SEC
+        if cycle <= 0:
+            return
+
+        for blocker in self.moving_blockers:
+            x, y = blocker["tile"]
+            phase = (self.blocker_time + blocker.get("phase_offset", 0.0)) % cycle
+            should_block = phase >= MOVING_BLOCKER_OPEN_SEC
+            key = (x, y)
+
+            if should_block:
+                if key not in self.active_blockers:
+                    self.active_blockers[key] = add_wall_tile(space, x, y)
+                self.active_blocker_tiles.append(key)
+            elif key in self.active_blockers:
+                body, shape = self.active_blockers.pop(key)
+                try:
+                    space.remove(shape, body)
+                except (AssertionError, ValueError):
+                    print(f"  [BLOCKER] Failed to remove moving blocker at {key}.")
+
+    # ──────────────────────────────────────────────
     # Item pickup
     # ──────────────────────────────────────────────
     def _check_item_pickups(self):
@@ -131,17 +178,17 @@ class GameState:
             if coords is None:
                 continue
             gx, gy = coords
-            if (gx, gy) in [(ix, iy) for ix, iy in self.item_tiles]:
-                # Assign weapon
-                if random.random() < WEAPON_KNIFE_PROB:
+            item_type = self.item_spawns.get((gx, gy))
+            if item_type:
+                if item_type == "knife":
                     racer["held_item"] = "knife"
-                else:
+                elif item_type == "gun":
                     racer["held_item"] = "gun"
                     racer["state"] = "terminator"
                     racer["draw_color"] = COLOR_TERMINATOR
                     racer["gun_timer"] = GUN_FIRE_INTERVAL
                 # Consume item
-                self.item_tiles.remove((gx, gy))
+                self.item_spawns.pop((gx, gy), None)
                 self.grid[gy][gx] = TILE_FLOOR
 
         # Also check dropped knives
@@ -230,8 +277,8 @@ class GameState:
         if self.winner is not None:
             return
         for racer in self.racers:
-            if not racer["alive"] or racer["state"] == "terminator":
-                continue  # terminators can't win by finish line
+            if not racer["alive"]:
+                continue
             coords = self._get_grid_coords(racer["body"].position)
             if coords is None:
                 continue
@@ -240,17 +287,6 @@ class GameState:
                 self.winner = racer["name"]
                 print(f"  [WIN] {racer['name']} reached the finish line!")
                 return
-
-    def _check_last_alive(self):
-        if self.winner is not None:
-            return
-        alive = [r for r in self.racers if r["alive"]]
-        if len(alive) == 1:
-            self.winner = alive[0]["name"]
-            print(f"  [WIN] {alive[0]['name']} is the last one standing!")
-        elif len(alive) == 0:
-            # All dead — no winner (stalemate)
-            self.winner = None
 
     # ──────────────────────────────────────────────
     # Deferred removal (prevents pymunk mid-step crash)

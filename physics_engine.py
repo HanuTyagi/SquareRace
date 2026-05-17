@@ -55,6 +55,7 @@ def add_wall_tile(space, x, y):
     shape.friction = WALL_FRICTION
     shape.filter = pymunk.ShapeFilter(categories=CAT_WALL)
     space.add(body, shape)
+    return body, shape
 
 
 def create_racers(space, spawn_center):

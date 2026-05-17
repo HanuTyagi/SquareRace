@@ -1,5 +1,5 @@
 """
-map_generator.py — Map Engine v2: structured room/corridor arenas with metadata.
+map_generator.py — Structured room/corridor arena generator with metadata.
 """
 
 import collections
@@ -15,6 +15,10 @@ from config import (
     ITEM_COUNT_PROBS,
     ITEM_BUFFER_MIN,
     ITEM_BUFFER_MAX,
+    ITEM_TYPE_PROBS,
+    MOVING_BLOCKER_COUNT,
+    MOVING_BLOCKER_OPEN_SEC,
+    MOVING_BLOCKER_CLOSED_SEC,
     SPAWN_MODE_CORNER_PROB,
     CORNER_SPAWN_SPLIT_PROB,
     SPAWN_ROOM_W,
@@ -191,7 +195,7 @@ def _distance_map_within_region(region_tiles, entrances):
             dist[(nx, ny)] = dist[(x, y)] + 1
             q.append((nx, ny))
 
-    # Disconnected tiles (unexpected) get minimum priority (sorts last in descending fill order).
+    # Any disconnected tiles are deprioritized for shrink fill ordering.
     for t in region:
         dist.setdefault(t, MIN_FILL_PRIORITY)
     return dist
@@ -404,20 +408,20 @@ def _place_pockets(grid, spine, finish_anchor):
 
 
 def _place_items(grid, spawn_start, finish_tiles):
-    """Place 0-3 item tiles in a buffer zone around shortest path."""
+    """Place typed item tiles in a distance band around shortest path."""
     path = _bfs_path(grid, spawn_start, finish_tiles)
     if not path:
         return []
 
     path_set = set(path)
-    buffer_radius = random.randint(ITEM_BUFFER_MIN, ITEM_BUFFER_MAX)
 
     candidates = []
     for y in range(1, GRID_H - 1):
         for x in range(1, GRID_W - 1):
             if grid[y][x] != TILE_FLOOR or (x, y) in path_set:
                 continue
-            if any(abs(x - px) + abs(y - py) <= buffer_radius for px, py in path):
+            dist_to_path = min(abs(x - px) + abs(y - py) for px, py in path)
+            if ITEM_BUFFER_MIN <= dist_to_path <= ITEM_BUFFER_MAX:
                 candidates.append((x, y))
 
     random.shuffle(candidates)
@@ -434,8 +438,67 @@ def _place_items(grid, spawn_start, finish_tiles):
     placed = []
     for x, y in candidates[:count]:
         grid[y][x] = TILE_ITEM
-        placed.append((x, y))
+        placed.append(
+            {
+                "tile": (x, y),
+                "item_type": _sample_item_type(),
+            }
+        )
     return placed
+
+
+def _sample_item_type():
+    r = random.random()
+    cumulative = 0.0
+    for item_type, prob in ITEM_TYPE_PROBS.items():
+        cumulative += prob
+        if r < cumulative:
+            return item_type
+    return "knife"
+
+
+def _build_moving_blockers(spine, finish_tiles, spawn_points):
+    """Select periodic block/unblock tiles along the main corridor."""
+    if len(spine) < 14:
+        return []
+
+    finish_set = set(finish_tiles)
+    spawn_set = set(spawn_points)
+    start_guard = max(6, len(spine) // 8)
+    end_guard = max(8, len(spine) // 6)
+
+    candidate_indices = []
+    for idx in range(start_guard, len(spine) - end_guard):
+        x, y = spine[idx]
+        if (x, y) in finish_set or (x, y) in spawn_set:
+            continue
+        if idx <= 0 or idx >= len(spine) - 1:
+            continue
+        px, py = spine[idx - 1]
+        nx, ny = spine[idx + 1]
+        if px != nx and py != ny:
+            continue
+        candidate_indices.append(idx)
+
+    random.shuffle(candidate_indices)
+    picked = []
+    for idx in candidate_indices:
+        if any(abs(idx - p) < 6 for p in picked):
+            continue
+        picked.append(idx)
+        if len(picked) >= MOVING_BLOCKER_COUNT:
+            break
+
+    blockers = []
+    cycle = MOVING_BLOCKER_OPEN_SEC + MOVING_BLOCKER_CLOSED_SEC
+    for idx in picked:
+        blockers.append(
+            {
+                "tile": spine[idx],
+                "phase_offset": random.uniform(0.0, cycle),
+            }
+        )
+    return blockers
 
 
 def _validate_paths(grid, spawn_points, finish_tiles):
@@ -502,7 +565,7 @@ def generate_arena():
     grid : list[list[int]]
     spawn_positions_px : list[(float, float)]
     finish_tiles : list[(int, int)]
-    item_tiles : list[(int, int)]
+    item_tiles : list[dict]
     map_meta : dict
     """
     w, h = GRID_W, GRID_H
@@ -528,15 +591,17 @@ def generate_arena():
             continue
 
         item_tiles = _place_items(grid, spawn_points[0], finish_tiles)
+        moving_blockers = _build_moving_blockers(spine, finish_tiles, spawn_points)
 
         spawn_positions_px = [((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE) for x, y in spawn_points]
         map_meta = _build_region_metadata(spawn_regions, pockets, spine, finish_tiles, spawn_mode)
         map_meta["finish_chamber"] = finish_chamber
+        map_meta["moving_blockers"] = moving_blockers
 
         return grid, spawn_positions_px, finish_tiles, item_tiles, map_meta
 
     raise RuntimeError(
-        f"Failed to generate a valid Map Engine v2 arena after {MAP_GEN_MAX_ATTEMPTS} attempts "
+        f"Failed to generate a valid structured arena after {MAP_GEN_MAX_ATTEMPTS} attempts "
         f"(spawn mode choice: {spawn_mode_choice}). Try reducing MIN_POCKETS requirements or "
-        f"adjusting POCKET_SIZE / POCKET_MAX_INDEX_PAD constraints."
+        f"adjusting POCKET_SIZE_MIN / POCKET_SIZE_MAX / POCKET_MAX_INDEX_PAD constraints."
     )

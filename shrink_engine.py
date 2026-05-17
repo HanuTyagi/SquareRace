@@ -18,6 +18,12 @@ class ShrinkEngine:
     """
     Region-based staged shrink:
       spawn_fill -> pocket_fill -> corridor_advance -> pocket_fill -> ...
+
+    map_meta expects:
+      - spawn_regions: list[dict] with "tiles", "entrances", and optional "depth_map"
+      - pockets: list[dict] with "tiles", "entrances", "finish_distance"
+      - main_corridor_spine: ordered list[(x, y)]
+      - finish_tiles: list[(x, y)]
     """
 
     def __init__(self, map_meta):

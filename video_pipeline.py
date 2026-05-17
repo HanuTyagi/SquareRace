@@ -24,7 +24,7 @@ from physics_engine import (
 )
 from renderer import (
     bake_map_surface, draw_trails, draw_racers,
-    draw_hud, draw_shrink_tiles,
+    draw_hud, draw_shrink_tiles, draw_items, draw_active_blockers,
 )
 from game_mechanics import GameState
 
@@ -67,7 +67,7 @@ def run_single_race(screen):
     game = GameState(racers, grid, finish_tiles, item_tiles, map_meta=map_meta)
     map_surface = bake_map_surface(grid)
     trail_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    # Persistent overlay: only newly shrunk tiles are painted each frame.
+    # Persistent overlay that accumulates shrunk tiles; only new tiles are added each frame.
     shrink_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     frames = []
@@ -85,6 +85,7 @@ def run_single_race(screen):
 
         # --- Render ---
         screen.blit(map_surface, (0, 0))
+        draw_items(screen, game.item_spawns)
 
         # Trail overlay
         trail_overlay.fill((0, 0, 0, 0))
@@ -93,6 +94,7 @@ def run_single_race(screen):
         if game.newly_shrunk_tiles:
             draw_shrink_tiles(shrink_overlay, game.newly_shrunk_tiles)
         screen.blit(shrink_overlay, (0, 0))
+        draw_active_blockers(screen, game.active_blocker_tiles)
 
         # Racers
         draw_racers(screen, racers)

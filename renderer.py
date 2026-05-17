@@ -17,9 +17,10 @@ from config import (
     SQUARE_SIZE, TRAIL_LENGTH, TRAIL_ALPHA_MAX, TRAIL_MIN_SCALE,
     COLOR_WALL, COLOR_PATH, COLOR_CHECKER_1, COLOR_CHECKER_2,
     COLOR_FINISH_1, COLOR_FINISH_2, COLOR_DEATH_ZONE,
-    COLOR_TERMINATOR, COLOR_KNIFE, COLOR_HUD_TEXT, COLOR_SHRINK,
+    COLOR_TERMINATOR, COLOR_KNIFE, COLOR_GUN_ITEM, COLOR_HUD_TEXT, COLOR_SHRINK,
+    COLOR_BLOCKER,
 )
-from map_generator import TILE_FLOOR, TILE_WALL, TILE_ITEM, TILE_FINISH
+from map_generator import TILE_WALL, TILE_FINISH
 
 
 def _draw_checkered(surface, rect, c1, c2, checks=2):
@@ -49,11 +50,29 @@ def bake_map_surface(grid):
             rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
             if tile == TILE_WALL:
                 pygame.draw.rect(surf, COLOR_WALL, rect)
-            elif tile == TILE_ITEM:
-                _draw_checkered(surf, rect, COLOR_CHECKER_1, COLOR_CHECKER_2, 2)
             elif tile == TILE_FINISH:
                 _draw_checkered(surf, rect, COLOR_FINISH_1, COLOR_FINISH_2, 3)
     return surf
+
+
+def draw_items(surface, item_spawns):
+    """Draw typed item tiles (knife / gun) from dynamic spawn map."""
+    for (x, y), item_type in item_spawns.items():
+        rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        if item_type == "gun":
+            _draw_checkered(surface, rect, COLOR_GUN_ITEM, COLOR_CHECKER_2, 2)
+        elif item_type == "knife":
+            _draw_checkered(surface, rect, COLOR_CHECKER_1, COLOR_CHECKER_2, 2)
+
+
+def draw_active_blockers(surface, blocker_tiles):
+    """Draw currently closed moving blockers."""
+    for x, y in blocker_tiles:
+        pygame.draw.rect(
+            surface,
+            COLOR_BLOCKER,
+            pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+        )
 
 
 def draw_trails(surface, racers):

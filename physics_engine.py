@@ -40,16 +40,22 @@ def add_walls(space, grid):
     for y in range(GRID_H):
         for x in range(GRID_W):
             if grid[y][x] == TILE_WALL:
-                body = pymunk.Body(body_type=pymunk.Body.STATIC)
-                body.position = (
-                    x * TILE_SIZE + TILE_SIZE / 2,
-                    y * TILE_SIZE + TILE_SIZE / 2,
-                )
-                shape = pymunk.Poly.create_box(body, (TILE_SIZE, TILE_SIZE))
-                shape.elasticity = WALL_ELASTICITY
-                shape.friction = WALL_FRICTION
-                shape.filter = pymunk.ShapeFilter(categories=CAT_WALL)
-                space.add(body, shape)
+                add_wall_tile(space, x, y)
+
+
+def add_wall_tile(space, x, y):
+    """Add one static wall tile body to pymunk space."""
+    body = pymunk.Body(body_type=pymunk.Body.STATIC)
+    body.position = (
+        x * TILE_SIZE + TILE_SIZE / 2,
+        y * TILE_SIZE + TILE_SIZE / 2,
+    )
+    shape = pymunk.Poly.create_box(body, (TILE_SIZE, TILE_SIZE))
+    shape.elasticity = WALL_ELASTICITY
+    shape.friction = WALL_FRICTION
+    shape.filter = pymunk.ShapeFilter(categories=CAT_WALL)
+    space.add(body, shape)
+    return body, shape
 
 
 def create_racers(space, spawn_center):
@@ -63,11 +69,18 @@ def create_racers(space, spawn_center):
     racers = []
     base_angle = random.uniform(0, math.pi * 2)
 
+    spawn_positions = None
+    if isinstance(spawn_center, list):
+        spawn_positions = spawn_center
+
     for i in range(4):
         moment = pymunk.moment_for_box(RACER_MASS, (SQUARE_SIZE, SQUARE_SIZE))
         body = pymunk.Body(RACER_MASS, moment)
-        offset_x = (i - 1.5) * (SQUARE_SIZE + 2)
-        body.position = (spawn_center[0] + offset_x, spawn_center[1])
+        if spawn_positions and i < len(spawn_positions):
+            body.position = spawn_positions[i]
+        else:
+            offset_x = (i - 1.5) * (SQUARE_SIZE + 2)
+            body.position = (spawn_center[0] + offset_x, spawn_center[1])
 
         shape = pymunk.Poly.create_box(body, (SQUARE_SIZE, SQUARE_SIZE))
         shape.elasticity = RACER_ELASTICITY

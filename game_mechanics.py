@@ -14,7 +14,7 @@ import math
 import pymunk
 
 from config import (
-    TILE_SIZE, FPS,
+    TILE_SIZE, SQUARE_SIZE, FPS,
     KNIFE_COOLDOWN_SEC,
     GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
     COLOR_TERMINATOR,
@@ -88,7 +88,7 @@ class GameState:
         self._update_cooldowns(dt)
         self._check_item_pickups()
         self._update_moving_blockers(dt, space)
-        self._check_knife_collisions()
+        self._check_knife_collisions(space)
         self._fire_guns(space)
         # Uses staged region shrink for pressure.
         self._update_shrink(dt, space)
@@ -218,7 +218,7 @@ class GameState:
     # ──────────────────────────────────────────────
     # Knife melee
     # ──────────────────────────────────────────────
-    def _check_knife_collisions(self):
+    def _check_knife_collisions(self, space):
         alive = [r for r in self.racers if r["alive"]]
         for attacker in alive:
             if attacker["held_item"] != "knife":
@@ -226,10 +226,18 @@ class GameState:
             for victim in alive:
                 if victim is attacker:
                     continue
-                contact = attacker["shape"].shapes_collide(victim["shape"])
-                if not contact.points:
-                    continue
                 ax, ay = attacker["body"].position
+                vx, vy = victim["body"].position
+                if math.hypot(ax - vx, ay - vy) > SQUARE_SIZE * 1.1:
+                    continue
+                wall_hit = space.segment_query_first(
+                    (ax, ay),
+                    (vx, vy),
+                    1,
+                    pymunk.ShapeFilter(mask=CAT_WALL),
+                )
+                if wall_hit is not None:
+                    continue
                 idx = self.racers.index(victim)
                 self.pending_removals.append(idx)
                 self.dropped_knives.append((int(ax // TILE_SIZE), int(ay // TILE_SIZE), KNIFE_COOLDOWN_SEC))

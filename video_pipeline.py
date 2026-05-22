@@ -32,6 +32,7 @@ from game_mechanics import GameState
 
 def _init_headless_pygame():
     """Initialize pygame with a hidden display (window exists but is invisible)."""
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.HIDDEN)

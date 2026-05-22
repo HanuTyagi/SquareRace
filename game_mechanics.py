@@ -1,11 +1,11 @@
 """
-game_mechanics.py — Modules C + D: Weapons, Terminator, Death Zone, Win Logic.
+game_mechanics.py — Modules C + D: weapons, blockers, shrink, and win logic.
 
 Manages:
   - Typed item pickup (knife / gun)
-  - Knife: melee elimination on racer-vs-racer collision, cooldown drop
+  - Knife: melee elimination on actual racer contact, cooldown drop
   - Gun (Terminator): state change, periodic raycast firing, elimination on hit
-  - Death Zone: descending wall that eliminates racers above it
+  - Region-based shrink pressure and moving blockers
   - Win condition: finish-line crossing only
   - Deferred body removal queue (safe mid-step handling)
 """
@@ -15,14 +15,14 @@ import pymunk
 
 from config import (
     TILE_SIZE, SQUARE_SIZE, FPS,
-    KNIFE_COOLDOWN_SEC,
-    GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
+    KNIFE_COOLDOWN_SEC, KNIFE_RANGE_MULTIPLIER,
+    GUN_FIRE_INTERVAL, GUN_RAY_LENGTH, RAYCAST_RADIUS,
     COLOR_TERMINATOR,
     MAX_RACE_SECONDS,
     MOVING_BLOCKER_OPEN_SEC,
     MOVING_BLOCKER_CLOSED_SEC,
 )
-from physics_engine import CAT_RACER, add_wall_tile
+from physics_engine import CAT_RACER, CAT_WALL, add_wall_tile
 from map_generator import TILE_FLOOR, TILE_WALL, TILE_FINISH, TILE_SHRINK
 from shrink_engine import ShrinkEngine
 
@@ -62,6 +62,13 @@ class GameState:
         self.blocker_time = 0.0
         self.active_blockers = {}                  # {(x, y): (body, shape)}
         self.active_blocker_tiles = []
+        self.stats = {
+            "item_pickups": 0,
+            "knife_kills": 0,
+            "gun_kills": 0,
+            "shrink_tiles": 0,
+            "blocker_closures": 0,
+        }
 
     def _get_grid_coords(self, position):
         px, py = position
@@ -81,7 +88,7 @@ class GameState:
         self._update_cooldowns(dt)
         self._check_item_pickups()
         self._update_moving_blockers(dt, space)
-        self._check_knife_collisions()
+        self._check_knife_collisions(space)
         self._fire_guns(space)
         # Uses staged region shrink for pressure.
         self._update_shrink(dt, space)
@@ -117,6 +124,7 @@ class GameState:
             self.grid[y][x] = TILE_SHRINK
             self.shrunk_tiles.add((x, y))
             self.newly_shrunk_tiles.append((x, y))
+            self.stats["shrink_tiles"] += 1
             add_wall_tile(space, x, y)
 
             # Remove consumed item if shrink covers it.
@@ -159,6 +167,7 @@ class GameState:
             if should_block:
                 if key not in self.active_blockers:
                     self.active_blockers[key] = add_wall_tile(space, x, y)
+                    self.stats["blocker_closures"] += 1
                 self.active_blocker_tiles.append(key)
             elif key in self.active_blockers:
                 body, shape = self.active_blockers.pop(key)
@@ -187,6 +196,7 @@ class GameState:
                     racer["state"] = "terminator"
                     racer["draw_color"] = COLOR_TERMINATOR
                     racer["gun_timer"] = GUN_FIRE_INTERVAL
+                self.stats["item_pickups"] += 1
                 # Consume item
                 self.item_spawns.pop((gx, gy), None)
                 self.grid[gy][gx] = TILE_FLOOR
@@ -208,28 +218,34 @@ class GameState:
     # ──────────────────────────────────────────────
     # Knife melee
     # ──────────────────────────────────────────────
-    def _check_knife_collisions(self):
+    def _check_knife_collisions(self, space):
         alive = [r for r in self.racers if r["alive"]]
         for attacker in alive:
             if attacker["held_item"] != "knife":
                 continue
             ax, ay = attacker["body"].position
+            knife_range = SQUARE_SIZE * KNIFE_RANGE_MULTIPLIER
             for victim in alive:
                 if victim is attacker:
                     continue
                 vx, vy = victim["body"].position
-                dist = math.hypot(ax - vx, ay - vy)
-                if dist < SQUARE_SIZE * 1.2:
-                    # Eliminate victim
-                    idx = self.racers.index(victim)
-                    self.pending_removals.append(idx)
-                    # Drop knife at collision point
-                    drop_gx = int(ax // TILE_SIZE)
-                    drop_gy = int(ay // TILE_SIZE)
-                    self.dropped_knives.append((drop_gx, drop_gy, KNIFE_COOLDOWN_SEC))
-                    attacker["held_item"] = None
-                    print(f"  [KNIFE] {attacker['name']} eliminated {victim['name']}!")
-                    break  # one kill per frame per attacker
+                if math.hypot(ax - vx, ay - vy) > knife_range:
+                    continue
+                wall_hit = space.segment_query_first(
+                    (ax, ay),
+                    (vx, vy),
+                    RAYCAST_RADIUS,
+                    pymunk.ShapeFilter(mask=CAT_WALL),
+                )
+                if wall_hit is not None:
+                    continue
+                idx = self.racers.index(victim)
+                self.pending_removals.append(idx)
+                self.dropped_knives.append((int(ax // TILE_SIZE), int(ay // TILE_SIZE), KNIFE_COOLDOWN_SEC))
+                attacker["held_item"] = None
+                self.stats["knife_kills"] += 1
+                print(f"  [KNIFE] {attacker['name']} eliminated {victim['name']}!")
+                break  # one kill per frame per attacker
 
     # ──────────────────────────────────────────────
     # Gun (Terminator) raycast
@@ -255,20 +271,24 @@ class GameState:
 
             # Query all shapes hit by the ray
             hits = space.segment_query(
-                (px, py), (end_x, end_y), 1,
-                pymunk.ShapeFilter(mask=CAT_RACER),
+                (px, py), (end_x, end_y), RAYCAST_RADIUS,
+                pymunk.ShapeFilter(mask=CAT_RACER | CAT_WALL),
             )
-            for hit in hits:
-                shape = hit.shape
-                if not hasattr(shape, "racer_index"):
+            hit = None
+            for result in hits:
+                if result.shape in racer["body"].shapes:
                     continue
-                victim_idx = shape.racer_index
-                victim = self.racers[victim_idx]
-                if victim is racer or not victim["alive"]:
-                    continue
-                self.pending_removals.append(victim_idx)
-                print(f"  [GUN] {racer['name']} shot {victim['name']}!")
-                break  # first hit only
+                if hit is None or result.alpha < hit.alpha:
+                    hit = result
+            if hit is None or not hasattr(hit.shape, "racer_index"):
+                continue
+            victim_idx = hit.shape.racer_index
+            victim = self.racers[victim_idx]
+            if not victim["alive"]:
+                continue
+            self.pending_removals.append(victim_idx)
+            self.stats["gun_kills"] += 1
+            print(f"  [GUN] {racer['name']} shot {victim['name']}!")
 
     # ──────────────────────────────────────────────
     # Win conditions
@@ -311,10 +331,6 @@ class GameState:
     # Cooldown ticking
     # ──────────────────────────────────────────────
     def _update_cooldowns(self, dt):
-        for knife in self.dropped_knives:
-            # Mutate in-place via list replacement
-            pass
-        # Rebuild with decremented cooldowns
         self.dropped_knives = [
             (kx, ky, max(0.0, cd - dt))
             for kx, ky, cd in self.dropped_knives
@@ -322,3 +338,11 @@ class GameState:
         for racer in self.racers:
             if racer["item_cooldown"] > 0:
                 racer["item_cooldown"] = max(0.0, racer["item_cooldown"] - dt)
+
+    def quality_metrics(self):
+        """Return aggregate metrics for race selection heuristics."""
+        return {
+            **self.stats,
+            "duration_sec": self.elapsed_sec,
+            "winner": self.winner,
+        }

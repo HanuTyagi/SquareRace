@@ -570,13 +570,14 @@ def generate_arena():
     """
     w, h = GRID_W, GRID_H
 
-    if random.random() >= SPAWN_MODE_CORNER_PROB:
-        spawn_mode_choice = "single"
-    else:
-        spawn_mode_choice = "corner4" if random.random() < CORNER_SPAWN_SPLIT_PROB else "corner2"
-
     attempts = MAP_GEN_MAX_ATTEMPTS
+    tried_spawn_modes = set()
     for _ in range(attempts):
+        if random.random() >= SPAWN_MODE_CORNER_PROB:
+            spawn_mode_choice = "single"
+        else:
+            spawn_mode_choice = "corner4" if random.random() < CORNER_SPAWN_SPLIT_PROB else "corner2"
+        tried_spawn_modes.add(spawn_mode_choice)
         grid = _make_filled_grid(w, h, TILE_WALL)
 
         spawn_regions, spawn_points, hub_center, spawn_mode = _build_spawn_and_hub(grid, spawn_mode_choice)
@@ -602,6 +603,6 @@ def generate_arena():
 
     raise RuntimeError(
         f"Failed to generate a valid structured arena after {MAP_GEN_MAX_ATTEMPTS} attempts "
-        f"(spawn mode choice: {spawn_mode_choice}). Try reducing MIN_POCKETS requirements or "
+        f"(tried spawn modes: {sorted(tried_spawn_modes)}). Try reducing MIN_POCKETS requirements or "
         f"adjusting POCKET_SIZE_MIN / POCKET_SIZE_MAX / POCKET_MAX_INDEX_PAD constraints."
     )

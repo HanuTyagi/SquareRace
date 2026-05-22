@@ -93,6 +93,7 @@ KNIFE_COOLDOWN_SEC   = 2.0   # seconds after use before re-pickup
 KNIFE_RANGE_MULTIPLIER = 1.1  # slight leniency so touching squares reliably register melee
 GUN_FIRE_INTERVAL    = 2.0   # seconds between Terminator shots
 GUN_RAY_LENGTH       = 600   # px — max raycast distance
+RAYCAST_RADIUS       = 1     # small sweep radius for stable LOS checks against thin geometry
 
 # ─── Shrink Mechanics (region-based) ────────────────────────────
 SHRINK_START_SEC          = 8.0

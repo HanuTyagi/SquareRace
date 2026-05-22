@@ -16,7 +16,7 @@ import pymunk
 from config import (
     TILE_SIZE, SQUARE_SIZE, FPS,
     KNIFE_COOLDOWN_SEC, KNIFE_RANGE_MULTIPLIER,
-    GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
+    GUN_FIRE_INTERVAL, GUN_RAY_LENGTH, RAYCAST_RADIUS,
     COLOR_TERMINATOR,
     MAX_RACE_SECONDS,
     MOVING_BLOCKER_OPEN_SEC,
@@ -233,7 +233,7 @@ class GameState:
                 wall_hit = space.segment_query_first(
                     (ax, ay),
                     (vx, vy),
-                    1,
+                    RAYCAST_RADIUS,
                     pymunk.ShapeFilter(mask=CAT_WALL),
                 )
                 if wall_hit is not None:
@@ -270,23 +270,23 @@ class GameState:
 
             # Query all shapes hit by the ray
             hits = space.segment_query(
-                (px, py), (end_x, end_y), 1,
+                (px, py), (end_x, end_y), RAYCAST_RADIUS,
                 pymunk.ShapeFilter(mask=CAT_RACER | CAT_WALL),
             )
-            for hit in sorted(hits, key=lambda result: result.alpha):
-                shape = hit.shape
-                if shape in racer["body"].shapes:
-                    continue
-                if not hasattr(shape, "racer_index"):
-                    break
-                victim_idx = shape.racer_index
-                victim = self.racers[victim_idx]
-                if not victim["alive"]:
-                    continue
-                self.pending_removals.append(victim_idx)
-                self.stats["gun_kills"] += 1
-                print(f"  [GUN] {racer['name']} shot {victim['name']}!")
-                break  # first visible racer only
+            hit = min(
+                (result for result in hits if result.shape not in racer["body"].shapes),
+                key=lambda result: result.alpha,
+                default=None,
+            )
+            if hit is None or not hasattr(hit.shape, "racer_index"):
+                continue
+            victim_idx = hit.shape.racer_index
+            victim = self.racers[victim_idx]
+            if not victim["alive"]:
+                continue
+            self.pending_removals.append(victim_idx)
+            self.stats["gun_kills"] += 1
+            print(f"  [GUN] {racer['name']} shot {victim['name']}!")
 
     # ──────────────────────────────────────────────
     # Win conditions

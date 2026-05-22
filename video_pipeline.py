@@ -174,7 +174,7 @@ def generate_race_video(screen, output_path, max_attempts=MAX_ATTEMPTS):
     """
     for attempt in range(1, max_attempts + 1):
         print(f"  Attempt {attempt}/{max_attempts}...")
-        temp_dir = tempfile.mkdtemp(prefix="race-", dir=os.path.dirname(output_path) or None)
+        temp_dir = tempfile.mkdtemp(prefix="race-", dir=os.path.dirname(output_path) or ".")
         temp_output_path = os.path.join(temp_dir, f"candidate{VIDEO_EXT}")
         try:
             result, winner, metrics = run_single_race(screen, temp_output_path)

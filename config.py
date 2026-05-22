@@ -5,8 +5,6 @@ Central source of truth for grid dimensions, physics parameters,
 colors, weapon probabilities, and timing values.
 """
 
-import math
-
 # ─── Grid & Resolution ──────────────────────────────────────────
 TILE_SIZE = 20
 GRID_W, GRID_H = 32, 50                     # tiles
@@ -36,7 +34,6 @@ COLOR_CHECKER_1  = (220, 220, 220)
 COLOR_CHECKER_2  = (150, 150, 150)
 COLOR_FINISH_1   = (255, 150, 50)
 COLOR_FINISH_2   = (50, 50, 50)
-COLOR_DEATH_ZONE = (180, 30, 30)
 COLOR_TERMINATOR = (160, 60, 60)
 COLOR_KNIFE      = (200, 200, 210)
 COLOR_GUN_ITEM   = (190, 90, 90)
@@ -53,15 +50,8 @@ RACER_COLORS = [
 RACER_NAMES = ["Red", "Blue", "Green", "Yellow"]
 
 # ─── Map Generation ────────────────────────────────────────────
-NUM_EDGE_OBSTACLES   = 9
-NUM_CENTER_OBSTACLES = 4
-OBSTACLE_SIZE_MIN    = 2     # tiles
-OBSTACLE_SIZE_MAX    = 6     # tiles (edge), 5 (center)
 FINISH_LINE_MIN_LEN  = 2     # tiles
 FINISH_LINE_MAX_LEN  = 4
-MIN_FINISH_DISTANCE  = 12    # Euclidean tile distance from spawn
-SPAWN_BUFFER_W       = 6     # tiles carved open around spawn
-SPAWN_BUFFER_H       = 3
 
 # v2 map generation (corridor + pockets)
 SPAWN_MODE_CORNER_PROB = 0.20     # 20%: corner spawns, 80%: single spawn
@@ -115,10 +105,11 @@ MIN_FILL_PRIORITY = -10**9
 
 # ─── Pressure Mechanics ────────────────────────────────────────
 MAX_RACE_SECONDS     = 90    # hard cutoff → discard simulation
-DEATH_ZONE_START_SEC = 15    # seconds before the death wall starts moving
-DEATH_ZONE_SPEED     = 15    # px / second downward
 
 # ─── Video Pipeline ────────────────────────────────────────────
 VIDEO_CODEC   = "mp4v"
 VIDEO_EXT     = ".mp4"
 MAX_ATTEMPTS  = 10           # retries before giving up on one video
+MIN_ACCEPTED_RACE_SECONDS = 8.0
+MAX_ACCEPTED_RACE_SECONDS = 45.0
+MIN_ACCEPTED_RACE_SCORE = 6

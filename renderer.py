@@ -5,7 +5,6 @@ Handles:
   - Pre-baking the static map surface (walls, floor, checkered zones)
   - Drawing racer trails with fading alpha + shrinking size
   - Drawing racers (normal, armed, terminator states)
-  - Drawing the death zone
   - Drawing HUD text (winner announcement, timer)
 """
 
@@ -16,8 +15,8 @@ from config import (
     WIDTH, HEIGHT, TILE_SIZE, GRID_W, GRID_H,
     SQUARE_SIZE, TRAIL_LENGTH, TRAIL_ALPHA_MAX, TRAIL_MIN_SCALE,
     COLOR_WALL, COLOR_PATH, COLOR_CHECKER_1, COLOR_CHECKER_2,
-    COLOR_FINISH_1, COLOR_FINISH_2, COLOR_DEATH_ZONE,
-    COLOR_TERMINATOR, COLOR_KNIFE, COLOR_GUN_ITEM, COLOR_HUD_TEXT, COLOR_SHRINK,
+    COLOR_FINISH_1, COLOR_FINISH_2,
+    COLOR_KNIFE, COLOR_GUN_ITEM, COLOR_HUD_TEXT, COLOR_SHRINK,
     COLOR_BLOCKER,
 )
 from map_generator import TILE_WALL, TILE_FINISH
@@ -129,22 +128,6 @@ def draw_racers(surface, racers):
                 [(int(tip_x), int(tip_y)), (int(base1[0]), int(base1[1])),
                  (int(base2[0]), int(base2[1]))],
             )
-
-
-def draw_death_zone(surface, death_zone_y):
-    """Draw the descending death rectangle at the top of the arena."""
-    if death_zone_y > 0:
-        pygame.draw.rect(
-            surface, COLOR_DEATH_ZONE,
-            (0, 0, WIDTH, int(death_zone_y)),
-        )
-        # Pulsing edge line for visibility
-        pygame.draw.line(
-            surface, (255, 80, 80),
-            (0, int(death_zone_y)), (WIDTH, int(death_zone_y)), 2,
-        )
-
-
 def draw_shrink_tiles(overlay_surface, tiles):
     """Draw newly shrunk tiles onto persistent shrink overlay."""
     for x, y in tiles:

@@ -224,11 +224,12 @@ class GameState:
             if attacker["held_item"] != "knife":
                 continue
             ax, ay = attacker["body"].position
+            knife_range = SQUARE_SIZE * KNIFE_RANGE_MULTIPLIER
             for victim in alive:
                 if victim is attacker:
                     continue
                 vx, vy = victim["body"].position
-                if math.hypot(ax - vx, ay - vy) > SQUARE_SIZE * KNIFE_RANGE_MULTIPLIER:
+                if math.hypot(ax - vx, ay - vy) > knife_range:
                     continue
                 wall_hit = space.segment_query_first(
                     (ax, ay),
@@ -273,11 +274,12 @@ class GameState:
                 (px, py), (end_x, end_y), RAYCAST_RADIUS,
                 pymunk.ShapeFilter(mask=CAT_RACER | CAT_WALL),
             )
-            hit = min(
-                (result for result in hits if result.shape not in racer["body"].shapes),
-                key=lambda result: result.alpha,
-                default=None,
-            )
+            hit = None
+            for result in hits:
+                if result.shape in racer["body"].shapes:
+                    continue
+                if hit is None or result.alpha < hit.alpha:
+                    hit = result
             if hit is None or not hasattr(hit.shape, "racer_index"):
                 continue
             victim_idx = hit.shape.racer_index

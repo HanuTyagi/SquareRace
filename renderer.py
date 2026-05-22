@@ -9,6 +9,9 @@ Handles:
 Note on headless environments / pygame font:
 - Some environments (or unsupported Python/pygame builds) may not provide pygame.font.
 - We treat HUD as optional and will gracefully skip text rendering if fonts are unavailable.
+
+Important: pygame implements module access via __getattr__ and may raise NotImplementedError
+when a submodule (e.g. font) is missing. We must catch BaseException classes broadly here.
 """
 
 import math
@@ -173,16 +176,14 @@ def _ensure_fonts():
         return _fonts_available
 
     try:
-        if not hasattr(pygame, "font"):
-            _fonts_available = False
-            return _fonts_available
-        # On some builds pygame.font exists but is not usable.
-        pygame.font.init()
+        # pygame uses __getattr__ which may raise NotImplementedError when submodules are missing.
+        pygame_font = pygame.font  # may raise
+        pygame_font.init()  # may raise
         _fonts_available = True
-        return _fonts_available
-    except Exception:
+    except BaseException:
         _fonts_available = False
-        return _fonts_available
+
+    return _fonts_available
 
 
 def _get_font(size):
@@ -194,10 +195,10 @@ def _get_font(size):
     if size not in _font_cache:
         try:
             _font_cache[size] = pygame.font.SysFont(None, size)
-        except Exception:
+        except BaseException:
             try:
                 _font_cache[size] = pygame.font.Font(None, size)
-            except Exception:
+            except BaseException:
                 _font_cache[size] = None
     return _font_cache[size]
 

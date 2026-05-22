@@ -10,6 +10,7 @@ Handles:
 
 import os
 import tempfile
+import shutil
 import numpy as np
 import cv2
 import pygame
@@ -17,6 +18,7 @@ import pygame
 from config import (
     WIDTH, HEIGHT, FPS, VIDEO_CODEC, VIDEO_EXT, MAX_ATTEMPTS,
     MIN_ACCEPTED_RACE_SECONDS, MAX_ACCEPTED_RACE_SECONDS, MIN_ACCEPTED_RACE_SCORE,
+    SHRINK_TILE_SCORE_BUCKET,
 )
 from map_generator import generate_arena
 from physics_engine import (
@@ -69,7 +71,7 @@ def _score_race(metrics):
     score += metrics["knife_kills"] * 3
     score += metrics["gun_kills"] * 2
     score += min(2, metrics["blocker_closures"])
-    score += min(2, metrics["shrink_tiles"] // 12)
+    score += min(2, metrics["shrink_tiles"] // SHRINK_TILE_SCORE_BUCKET)
     return score
 
 
@@ -172,8 +174,8 @@ def generate_race_video(screen, output_path, max_attempts=MAX_ATTEMPTS):
     """
     for attempt in range(1, max_attempts + 1):
         print(f"  Attempt {attempt}/{max_attempts}...")
-        fd, temp_output_path = tempfile.mkstemp(prefix="race-", suffix=VIDEO_EXT, dir=os.path.dirname(output_path) or None)
-        os.close(fd)
+        temp_dir = tempfile.mkdtemp(prefix="race-", dir=os.path.dirname(output_path) or None)
+        temp_output_path = os.path.join(temp_dir, f"candidate{VIDEO_EXT}")
         try:
             result, winner, metrics = run_single_race(screen, temp_output_path)
             if result != "win":
@@ -191,8 +193,7 @@ def generate_race_video(screen, output_path, max_attempts=MAX_ATTEMPTS):
             )
             return True
         finally:
-            if os.path.exists(temp_output_path):
-                os.remove(temp_output_path)
+            shutil.rmtree(temp_dir, ignore_errors=True)
         # else: retry
 
     print(f"  ✗ Failed to produce a valid race after {max_attempts} attempts.")

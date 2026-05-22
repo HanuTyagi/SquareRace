@@ -90,6 +90,7 @@ MOVING_BLOCKER_CLOSED_SEC = 2.0
 
 # ─── Weapon System ──────────────────────────────────────────────
 KNIFE_COOLDOWN_SEC   = 2.0   # seconds after use before re-pickup
+KNIFE_RANGE_MULTIPLIER = 1.1  # slight leniency so touching squares reliably register melee
 GUN_FIRE_INTERVAL    = 2.0   # seconds between Terminator shots
 GUN_RAY_LENGTH       = 600   # px — max raycast distance
 
@@ -113,3 +114,4 @@ MAX_ATTEMPTS  = 10           # retries before giving up on one video
 MIN_ACCEPTED_RACE_SECONDS = 8.0
 MAX_ACCEPTED_RACE_SECONDS = 45.0
 MIN_ACCEPTED_RACE_SCORE = 5
+SHRINK_TILE_SCORE_BUCKET = 12

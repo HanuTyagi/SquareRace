@@ -15,7 +15,7 @@ import pymunk
 
 from config import (
     TILE_SIZE, SQUARE_SIZE, FPS,
-    KNIFE_COOLDOWN_SEC,
+    KNIFE_COOLDOWN_SEC, KNIFE_RANGE_MULTIPLIER,
     GUN_FIRE_INTERVAL, GUN_RAY_LENGTH,
     COLOR_TERMINATOR,
     MAX_RACE_SECONDS,
@@ -228,7 +228,7 @@ class GameState:
                     continue
                 ax, ay = attacker["body"].position
                 vx, vy = victim["body"].position
-                if math.hypot(ax - vx, ay - vy) > SQUARE_SIZE * 1.1:
+                if math.hypot(ax - vx, ay - vy) > SQUARE_SIZE * KNIFE_RANGE_MULTIPLIER:
                     continue
                 wall_hit = space.segment_query_first(
                     (ax, ay),
@@ -329,7 +329,6 @@ class GameState:
     # Cooldown ticking
     # ──────────────────────────────────────────────
     def _update_cooldowns(self, dt):
-        # Rebuild with decremented cooldowns
         self.dropped_knives = [
             (kx, ky, max(0.0, cd - dt))
             for kx, ky, cd in self.dropped_knives

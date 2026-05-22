@@ -223,10 +223,10 @@ class GameState:
         for attacker in alive:
             if attacker["held_item"] != "knife":
                 continue
+            ax, ay = attacker["body"].position
             for victim in alive:
                 if victim is attacker:
                     continue
-                ax, ay = attacker["body"].position
                 vx, vy = victim["body"].position
                 if math.hypot(ax - vx, ay - vy) > SQUARE_SIZE * KNIFE_RANGE_MULTIPLIER:
                     continue

@@ -9,13 +9,16 @@ Handles:
 """
 
 import os
-import sys
+import tempfile
+import shutil
 import numpy as np
 import cv2
 import pygame
 
 from config import (
     WIDTH, HEIGHT, FPS, VIDEO_CODEC, VIDEO_EXT, MAX_ATTEMPTS,
+    MIN_ACCEPTED_RACE_SECONDS, MAX_ACCEPTED_RACE_SECONDS, MIN_ACCEPTED_RACE_SCORE,
+    SHRINK_TILE_SCORE_BUCKET,
 )
 from map_generator import generate_arena
 from physics_engine import (
@@ -24,13 +27,15 @@ from physics_engine import (
 )
 from renderer import (
     bake_map_surface, draw_trails, draw_racers,
-    draw_death_zone, draw_hud,
+    draw_hud, draw_shrink_tiles, draw_items, draw_active_blockers,
 )
 from game_mechanics import GameState
 
 
 def _init_headless_pygame():
     """Initialize pygame with a hidden display (window exists but is invisible)."""
+    os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.HIDDEN)
     return screen
@@ -47,7 +52,30 @@ def _surface_to_bgr(surface):
     return np.ascontiguousarray(arr)
 
 
-def run_single_race(screen):
+def _create_writer(output_path):
+    """Create a cv2 VideoWriter for the configured output path."""
+    fourcc = cv2.VideoWriter_fourcc(*VIDEO_CODEC)
+    writer = cv2.VideoWriter(output_path, fourcc, FPS, (WIDTH, HEIGHT))
+    if not writer.isOpened():
+        raise RuntimeError(f"Failed to open video writer for {output_path}")
+    return writer
+
+
+def _score_race(metrics):
+    """Return a simple quality score for automated race selection."""
+    score = 0
+    duration = metrics["duration_sec"]
+    if MIN_ACCEPTED_RACE_SECONDS <= duration <= MAX_ACCEPTED_RACE_SECONDS:
+        score += 2
+    score += metrics["item_pickups"]
+    score += metrics["knife_kills"] * 3
+    score += metrics["gun_kills"] * 2
+    score += min(2, metrics["blocker_closures"])
+    score += min(2, metrics["shrink_tiles"] // SHRINK_TILE_SCORE_BUCKET)
+    return score
+
+
+def run_single_race(screen, output_path):
     """
     Run one complete race simulation.
 
@@ -55,83 +83,77 @@ def run_single_race(screen):
     -------
     result : str
         "win", "timeout", or "all_dead"
-    frames : list[np.ndarray]
-        BGR frames if result == "win", else empty.
     winner_name : str or None
     """
     # --- Setup ---
-    grid, spawn_center, finish_tiles, item_tiles = generate_arena()
+    grid, spawn_center, finish_tiles, item_tiles, map_meta = generate_arena()
     space = create_space()
     add_walls(space, grid)
     racers = create_racers(space, spawn_center)
-    game = GameState(racers, grid, finish_tiles, item_tiles)
+    game = GameState(racers, grid, finish_tiles, item_tiles, map_meta=map_meta)
     map_surface = bake_map_surface(grid)
     trail_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    # Persistent overlay that accumulates shrunk tiles; only new tiles are added each frame.
+    shrink_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    writer = _create_writer(output_path)
 
-    frames = []
     winner_held_frames = 0       # hold the winner screen for a few seconds
     WINNER_HOLD = int(FPS * 2)   # 2 seconds of winner display
 
-    while True:
-        # --- Physics ---
-        enforce_constant_speed(racers)
-        update_trails(racers)
-        step(space)
+    try:
+        while True:
+            # --- Physics ---
+            enforce_constant_speed(racers)
+            update_trails(racers)
+            step(space)
 
-        # --- Game logic ---
-        status = game.update(space)
+            # --- Game logic ---
+            status = game.update(space)
 
-        # --- Render ---
-        screen.blit(map_surface, (0, 0))
+            # --- Render ---
+            screen.blit(map_surface, (0, 0))
+            draw_items(screen, game.item_spawns)
 
-        # Trail overlay
-        trail_overlay.fill((0, 0, 0, 0))
-        draw_trails(trail_overlay, racers)
-        screen.blit(trail_overlay, (0, 0))
+            # Trail overlay
+            trail_overlay.fill((0, 0, 0, 0))
+            draw_trails(trail_overlay, racers)
+            screen.blit(trail_overlay, (0, 0))
+            if game.newly_shrunk_tiles:
+                draw_shrink_tiles(shrink_overlay, game.newly_shrunk_tiles)
+            screen.blit(shrink_overlay, (0, 0))
+            draw_active_blockers(screen, game.active_blocker_tiles)
 
-        # Racers
-        draw_racers(screen, racers)
+            # Racers
+            draw_racers(screen, racers)
 
-        # Death zone
-        draw_death_zone(screen, game.death_zone_y)
+            # HUD
+            if game.winner:
+                draw_hud(screen, winner_name=game.winner)
+            else:
+                draw_hud(screen, elapsed_sec=game.elapsed_sec)
 
-        # HUD
-        if game.winner:
-            draw_hud(screen, winner_name=game.winner)
-        else:
-            draw_hud(screen, elapsed_sec=game.elapsed_sec)
+            # Capture frame
+            writer.write(_surface_to_bgr(screen))
 
-        # Capture frame
-        frames.append(_surface_to_bgr(screen))
+            # --- Termination checks ---
+            if status == "win":
+                winner_held_frames += 1
+                if winner_held_frames >= WINNER_HOLD:
+                    metrics = game.quality_metrics()
+                    metrics["score"] = _score_race(metrics)
+                    return "win", game.winner, metrics
 
-        # --- Termination checks ---
-        if status == "win":
-            winner_held_frames += 1
-            if winner_held_frames >= WINNER_HOLD:
-                return "win", frames, game.winner
+            elif status == "timeout":
+                print("  → Timeout! Discarding.")
+                return "timeout", None, game.quality_metrics()
 
-        elif status == "timeout":
-            print("  → Timeout! Discarding.")
-            return "timeout", [], None
-
-        # All dead check
-        alive = [r for r in racers if r["alive"]]
-        if len(alive) == 0 and game.winner is None:
-            print("  → All racers dead, no winner. Discarding.")
-            return "all_dead", [], None
-
-
-def encode_video(frames, output_path):
-    """Write a list of BGR numpy frames to an .mp4 file."""
-    if not frames:
-        return
-    h, w = frames[0].shape[:2]
-    fourcc = cv2.VideoWriter_fourcc(*VIDEO_CODEC)
-    writer = cv2.VideoWriter(output_path, fourcc, FPS, (w, h))
-    for frame in frames:
-        writer.write(frame)
-    writer.release()
-    print(f"  ✓ Saved: {output_path}  ({len(frames)} frames, {len(frames)/FPS:.1f}s)")
+            # All dead check
+            alive = [r for r in racers if r["alive"]]
+            if len(alive) == 0 and game.winner is None:
+                print("  → All racers dead, no winner. Discarding.")
+                return "all_dead", None, game.quality_metrics()
+    finally:
+        writer.release()
 
 
 def generate_race_video(screen, output_path, max_attempts=MAX_ATTEMPTS):
@@ -152,10 +174,26 @@ def generate_race_video(screen, output_path, max_attempts=MAX_ATTEMPTS):
     """
     for attempt in range(1, max_attempts + 1):
         print(f"  Attempt {attempt}/{max_attempts}...")
-        result, frames, winner = run_single_race(screen)
-        if result == "win":
-            encode_video(frames, output_path)
+        temp_dir = tempfile.mkdtemp(prefix="race-", dir=os.path.dirname(output_path) or ".")
+        temp_output_path = os.path.join(temp_dir, f"candidate{VIDEO_EXT}")
+        try:
+            result, winner, metrics = run_single_race(screen, temp_output_path)
+            if result != "win":
+                continue
+            if metrics.get("score", 0) < MIN_ACCEPTED_RACE_SCORE:
+                print(
+                    f"  → Win discarded due to low race quality "
+                    f"(score={metrics.get('score', 0)}, duration={metrics.get('duration_sec', 0.0):.1f}s)."
+                )
+                continue
+            os.replace(temp_output_path, output_path)
+            print(
+                f"  ✓ Saved: {output_path}  "
+                f"({metrics.get('duration_sec', 0.0):.1f}s, score={metrics.get('score', 0)})"
+            )
             return True
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
         # else: retry
 
     print(f"  ✗ Failed to produce a valid race after {max_attempts} attempts.")
@@ -172,4 +210,3 @@ def shutdown_pipeline():
     from renderer import _font_cache
     _font_cache.clear()
     pygame.quit()
-
